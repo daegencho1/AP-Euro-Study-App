@@ -1,15 +1,23 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
+const fs = require("fs");
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
-app.use(cors({ origin: "http://localhost:3000" }));
+// In development the React dev server is on a different port, so allow it.
+// In production everything is same-origin (Express serves the build), so CORS
+// is only needed locally.
+if (!fs.existsSync(path.join(__dirname, "build"))) {
+  app.use(cors({ origin: "http://localhost:3000" }));
+}
+
 app.use(express.json());
 
-// Single proxy endpoint — forwards the full Anthropic messages request body
-// from the React app to the Anthropic API. The API key never leaves the server.
+// Proxy endpoint — forwards requests to the Anthropic API.
+// The API key lives only in process.env and is never sent to the browser.
 app.post("/api/chat", async (req, res) => {
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -30,6 +38,16 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
+// Serve the React production build when it exists (i.e. in production).
+const buildDir = path.join(__dirname, "build");
+if (fs.existsSync(buildDir)) {
+  app.use(express.static(buildDir));
+  // Send index.html for any non-API route so client-side routing works.
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(buildDir, "index.html"));
+  });
+}
+
 app.listen(PORT, () => {
-  console.log(`Proxy server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
