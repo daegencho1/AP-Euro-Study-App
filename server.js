@@ -43,7 +43,7 @@ const buildDir = path.join(__dirname, "build");
 if (fs.existsSync(buildDir)) {
   app.use(express.static(buildDir));
   // Send index.html for any non-API route so client-side routing works.
-  app.get("/(.*)", (req, res) => {
+  app.get(/.*/, (req, res) => {
     res.sendFile(path.join(buildDir, "index.html"));
   });
 }
